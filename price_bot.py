@@ -18,7 +18,9 @@ EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 # Note: Gold is currently around 4200 in your data snippet
 TARGET_ZONES = [
     {"target": 4213.00, "pips": 10}, 
-    {"target": 4300.00, "pips": 5}
+    {"target": 4300.00, "pips": 5},
+    {"target": 4863.00, "pips": 10},
+    {"target": 4758.00, "pips": 10}
 ]
 
 def load_state():
