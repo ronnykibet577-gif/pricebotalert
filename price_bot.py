@@ -14,10 +14,11 @@ EMAIL_SENDER = os.environ.get("EMAIL_SENDER")
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD") 
 EMAIL_RECEIVER = os.environ.get("EMAIL_RECEIVER")
 
-# Target Prices & Pip Zones (1 pip = 0.01)
+# Target Prices & Pip Zones (1 pip in Gold = 0.01)
+# Note: Gold is currently around 4200 in your data snippet
 TARGET_ZONES = [
-    {"target": 2650.50, "pips": 2},
-    {"target": 2610.00, "pips": 5}
+    {"target": 4213.00, "pips": 10}, 
+    {"target": 4300.00, "pips": 5}
 ]
 
 def load_state():
@@ -34,8 +35,8 @@ def save_state(state):
         json.dump(state, f)
 
 def send_alert(price, target):
-    msg = MIMEText(f"Gold Alert! Price: {price} is near {target}.")
-    msg['Subject'] = f"GOLD ALERT: {price}"
+    msg = MIMEText(f"Gold Alert Triggered!\n\nCurrent Price: {price}\nTarget Zone: {target}")
+    msg['Subject'] = f"XAU/USD ALERT: {price}"
     msg['From'] = EMAIL_SENDER
     msg['To'] = EMAIL_RECEIVER
 
@@ -43,6 +44,7 @@ def send_alert(price, target):
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL_SENDER, EMAIL_PASSWORD)
             server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
+        print(f"Email sent successfully for {price}")
     except Exception as e:
         print(f"Email error: {e}")
 
@@ -52,41 +54,32 @@ def check_price():
         response = requests.get(URL, timeout=15)
         data = response.json()
         
-        # DEBUG: Let's see what we actually got
-        print(f"Raw API Data: {data}")
+        # NAVIGATION: First platform -> first spread profile
+        first_platform = data[0]
+        prices = first_platform['spreadProfilePrices'][0]
+        
+        bid = float(prices['bid'])
+        ask = float(prices['ask'])
+        current_price = (bid + ask) / 2
+        
+        print(f"Live Price (XAU/USD): {current_price}")
 
-        # Swissquote returns a list. Let's find the first item safely.
-        if isinstance(data, list) and len(data) > 0:
-            item = data[0]
-            # Try to find bid/ask using multiple possible keys
-            bid = item.get('bidPrice') or item.get('bid')
-            ask = item.get('askPrice') or item.get('ask')
+        for zone in TARGET_ZONES:
+            target_val = zone['target']
+            target_str = str(target_val)
+            buffer = zone['pips'] * 0.01 # 10 pips = $0.10
             
-            if bid and ask:
-                current_price = (float(bid) + float(ask)) / 2
-                print(f"Successfully calculated price: {current_price}")
-                
-                for zone in TARGET_ZONES:
-                    target_val = zone['target']
-                    target_str = str(target_val)
-                    buffer = zone['pips'] * 0.01
-                    
-                    if (target_val - buffer) <= current_price <= (target_val + buffer):
-                        last_sent = state.get(target_str, 0)
-                        if time.time() - last_sent > COOLDOWN_SECONDS:
-                            send_alert(current_price, target_val)
-                            state[target_str] = time.time()
-                            print(f"Alert TRIGGERED for {target_val}")
-                        else:
-                            print(f"Price in zone for {target_val}, but on cooldown.")
-                save_state(state)
-            else:
-                print("Error: 'bidPrice' or 'askPrice' keys missing from the item.")
-        else:
-            print("Error: API returned an empty list or unexpected format.")
-
+            if (target_val - buffer) <= current_price <= (target_val + buffer):
+                last_sent = state.get(target_str, 0)
+                if time.time() - last_sent > COOLDOWN_SECONDS:
+                    send_alert(current_price, target_val)
+                    state[target_str] = time.time()
+                else:
+                    print(f"Price {current_price} is in zone {target_val}, but cooling down.")
+        
+        save_state(state)
     except Exception as e:
-        print(f"System Error: {e}")
+        print(f"Error parsing Swissquote data: {e}")
 
 if __name__ == "__main__":
     check_price()
