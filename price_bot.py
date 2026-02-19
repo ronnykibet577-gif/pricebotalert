@@ -20,7 +20,8 @@ TARGET_ZONES = [
     {"target": 4213.00, "pips": 10}, 
     {"target": 4300.00, "pips": 5},
     {"target": 4863.00, "pips": 10},
-    {"target": 4758.00, "pips": 10}
+    {"target": 4758.00, "pips": 10},
+    {"target": 4973.00, "pips": 5}
 ]
 
 def load_state():
